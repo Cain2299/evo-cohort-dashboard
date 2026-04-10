@@ -1,0 +1,42 @@
+name: Extração diária EVO API
+
+on:
+  schedule:
+    # Roda todo dia às 06:00 UTC (03:00 BRT)
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    # Permite rodar manualmente pelo GitHub
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependências
+        run: |
+          pip install requests pandas openpyxl
+
+      - name: Executar extração
+        env:
+          EVO_USERNAME: ${{ secrets.EVO_USERNAME }}
+          EVO_PASSWORD: ${{ secrets.EVO_PASSWORD }}
+        run: |
+          python extract_daily.py
+
+      - name: Commit e push dos dados
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add data/
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+          git diff --staged --quiet || git commit -m "Dados atualizados: $TIMESTAMP"
+          git push
